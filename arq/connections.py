@@ -275,9 +275,10 @@ async def create_pool(
 
     while True:
         try:
-            pool = pool_factory(
-                db=settings.database, username=settings.username, password=settings.password, encoding='utf8'
-            )
+            kwargs = dict(db=settings.database, username=settings.username, password=settings.password, encoding='utf8')
+            if settings.cluster:
+                kwargs.pop("db")
+            pool = pool_factory(**kwargs)
             pool.job_serializer = job_serializer
             pool.job_deserializer = job_deserializer
             pool.default_queue_name = default_queue_name
