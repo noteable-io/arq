@@ -306,6 +306,8 @@ async def create_pool(
 
 
 async def log_redis_info(redis: 'Redis[bytes]', log_func: Callable[[str], Any]) -> None:
+    if isinstance(redis, RedisCluster):
+        return
     async with redis.pipeline(transaction=False) as pipe:
         pipe.info(section='Server')  # type: ignore[unused-coroutine]
         pipe.info(section='Memory')  # type: ignore[unused-coroutine]
