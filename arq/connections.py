@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 from redis.asyncio import ConnectionPool, Redis
+from redis.asyncio.cluster import RedisCluster  # type: ignore[import]
 from redis.asyncio.sentinel import Sentinel
 from redis.exceptions import RedisError, WatchError
 
@@ -46,6 +47,8 @@ class RedisSettings:
 
     sentinel: bool = False
     sentinel_master: str = 'mymaster'
+
+    cluster: bool = False
 
     @classmethod
     def from_dsn(cls, dsn: str) -> 'RedisSettings':
@@ -203,6 +206,20 @@ class ArqRedis(BaseRedis):
         return await asyncio.gather(*[self._get_job_def(job_id, int(score)) for job_id, score in jobs])
 
 
+class ArqRedisCluster(ArqRedis, RedisCluster):  # type: ignore[misc]
+    """
+    Thin subclass of ``redis.asyncio.cluster.RedisCluster`` which adds :func:`arq.connections.enqueue_job`.
+
+    :param redis_settings: an instance of ``arq.connections.RedisSettings``.
+    :param job_serializer: a function that serializes Python objects to bytes, defaults to pickle.dumps
+    :param job_deserializer: a function that deserializes bytes into Python objects, defaults to pickle.loads
+    :param default_queue_name: the default queue name to use, defaults to ``arq.queue``.
+    :param expires_extra_ms: the default length of time from when a job is expected to start
+     after which the job expires, defaults to 1 day in ms.
+    :param kwargs: keyword arguments directly passed to ``redis.asyncio.cluster.RedisCluster``.
+    """
+
+
 async def create_pool(
     settings_: RedisSettings = None,
     *,
@@ -235,8 +252,10 @@ async def create_pool(
             return client.master_for(settings.sentinel_master, redis_class=ArqRedis)
 
     else:
+        cls = ArqRedisCluster if settings.cluster else ArqRedis
+
         pool_factory = functools.partial(
-            ArqRedis,
+            cls,
             host=settings.host,
             port=settings.port,
             unix_socket_path=settings.unix_socket_path,
