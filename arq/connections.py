@@ -80,7 +80,7 @@ else:
     BaseRedis = Redis
 
 
-class ArqRedis(BaseRedis):
+class ArqRedisMixin:
     """
     Thin subclass of ``redis.asyncio.Redis`` which adds :func:`arq.connections.enqueue_job`.
 
@@ -206,7 +206,11 @@ class ArqRedis(BaseRedis):
         return await asyncio.gather(*[self._get_job_def(job_id, int(score)) for job_id, score in jobs])
 
 
-class ArqRedisCluster(ArqRedis, RedisCluster):  # type: ignore[misc]
+class ArqRedis(ArqRedisMixin, BaseRedis):
+    pass
+
+
+class ArqRedisCluster(ArqRedisMixin, RedisCluster):  # type: ignore[misc]
     """
     Thin subclass of ``redis.asyncio.cluster.RedisCluster`` which adds :func:`arq.connections.enqueue_job`.
 
